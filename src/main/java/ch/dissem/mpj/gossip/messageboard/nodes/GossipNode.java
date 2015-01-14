@@ -1,5 +1,13 @@
-package ch.dissem.mpj.gossip.messageboard;
+package ch.dissem.mpj.gossip.messageboard.nodes;
 
+import ch.dissem.mpj.gossip.messageboard.CID;
+import ch.dissem.mpj.gossip.messageboard.LogRecord;
+import ch.dissem.mpj.gossip.messageboard.Message;
+import ch.dissem.mpj.gossip.messageboard.VT;
+import ch.dissem.mpj.gossip.messageboard.deprecated.Receipt;
+import ch.dissem.mpj.gossip.messageboard.gossipmessages.GossipMessage;
+import ch.dissem.mpj.gossip.messageboard.gossipmessages.Query;
+import ch.dissem.mpj.gossip.messageboard.gossipmessages.Update;
 import mpi.MPI;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
@@ -14,13 +22,16 @@ public class GossipNode implements Serializable {
     protected final int nodeId;
     protected final int networkSize;
     protected final int serverThreshold;
+
+    protected final VT timestamp;
+
     /**
-     * Hängt von der Reihenfolge der ch.dissem.mpj.gossip.messageboard.Update-Operationen ab.
+     * Hängt von der Reihenfolge der ch.dissem.mpj.gossip.messageboard.gossipmessages.Update-Operationen ab.
      */
     protected final List<Message> value;
     /**
      * Spiegelt die Aktualität des aktuellen Zustandes wider.
-     * Wird mit jedem ch.dissem.mpj.gossip.messageboard.Update aktualisiert.
+     * Wird mit jedem ch.dissem.mpj.gossip.messageboard.gossipmessages.Update aktualisiert.
      */
     protected final VT valueTS;
     /**
@@ -30,14 +41,14 @@ public class GossipNode implements Serializable {
      */
     protected final List<LogRecord> updateLog;
     /**
-     * Berücksichtigt alle im ch.dissem.mpj.gossip.messageboard.Update-Log enthaltenen Events.
+     * Berücksichtigt alle im ch.dissem.mpj.gossip.messageboard.gossipmessages.Update-Log enthaltenen Events.
      */
     protected final VT replicaTS;
     /**
      * Ausgeführte Events, die eindeutig anhand der ID
      * identifiziert und gefunden werden können.
      */
-    protected final Set<Update> executedCalls;
+    protected final Set<CID> executedCalls;
     protected final Deque<Query> pendingQueue;
 
     private List<Thread> listenerThreads = new LinkedList<>();
@@ -47,6 +58,10 @@ public class GossipNode implements Serializable {
         this.serverThreshold = serverThreshold;
 
         nodeId = MPI.COMM_WORLD.Rank();
+        System.out.println("Node " + nodeId + " is a " + getClass().getSimpleName());
+
+        timestamp = new VT(nodeId);
+
         executedCalls = new HashSet<>();
         value = new CopyOnWriteArrayList<>();
         replicaTS = new VT(nodeId);
@@ -65,16 +80,6 @@ public class GossipNode implements Serializable {
         listenerThreads.stream().forEach(Thread::interrupt);
     }
 
-    public void waitForThreads() {
-        listenerThreads.stream().forEach(t -> {
-            try {
-                t.join();
-            } catch (InterruptedException e) {
-                // Ignore, we're kinda waiting for this...
-            }
-        });
-    }
-
     protected void startListening(int node) {
         Thread t = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
@@ -87,7 +92,7 @@ public class GossipNode implements Serializable {
         t.start();
     }
 
-    protected void receiveMessage(GossipMessage message) {
+    protected void receiveMessage(Object message) {
         System.out.println("Node " + nodeId + " received message:\n" + message);
         if (message instanceof Update) {
             receive((Update) message);
@@ -99,37 +104,48 @@ public class GossipNode implements Serializable {
     }
 
     protected void send(int node, GossipMessage message) {
-        System.out.println("Node " + nodeId + " sending message:\n" + message);
+        message.prev = replicaTS.clone(); // FIXME: oder doch valueTS?
+
+        System.out.println("From: " + nodeId + "; To: " + node + "; " + message.getClass().getSimpleName() + ":\n\t" + message);
         MPI.COMM_WORLD.Isend(new GossipMessage[]{message}, 0, 1, MPI.OBJECT, node, 0);
     }
 
     protected void receive(Query q) {
-        if (q.previous.happenedBeforeOrIs(replicaTS)) {
-            send(q.sender, new ReplicatorMessage(updateLog, replicaTS));
+        if (q.prev.happenedBeforeOrIs(valueTS)) {
+            valueTS.increment();
+            send(q.sender, new Update(nodeId, createCID(), value, valueTS));
         } else {
             pendingQueue.add(q);
         }
+        timestamp.max(q.prev);
     }
 
     protected void receive(Update u) {
-        if (executedCalls.contains(u))
+        if (executedCalls.contains(u.cid))
             return;
 
         replicaTS.increment();
 
-        long[] ts = u.previous.getVector();
+        long[] ts = u.prev.getVector();
         ts[nodeId] = replicaTS.getTime(nodeId);
         u.timestamp = new VT(nodeId, ts);
 
-        updateLog.add(new LogRecord(nodeId, u));
+        LogRecord logRecord = new LogRecord(nodeId, u.timestamp, u);
+        updateLog.add(logRecord);
 
+        // TODO: timestamp wird and die zugehörige FE zurückgegeben, welche ihren Timestamp entsprechend durch die Maximumsbildung anpasst.
+        // TODO: Wie?
         send(u.sender, new Receipt(u));
 
-        if (u.previous.happenedBefore(valueTS)) {
-            value.add(u.value);
-            valueTS.max(u.timestamp); // Is this correct?
-            executedCalls.add(u);
+        if (u.prev.happenedBefore(valueTS)) {
+            apply(u);
+            valueTS.max(u.timestamp); // TODO: stimmt das?
+            executedCalls.add(u.cid);
         }
+    }
+
+    protected void apply(Update u) {
+        value.addAll(u.value);
     }
 
     /**
@@ -142,5 +158,11 @@ public class GossipNode implements Serializable {
             e.printStackTrace();
             interrupt();
         }
+    }
+
+    private long messageId = 0;
+
+    protected CID createCID() {
+        return new CID(nodeId, messageId++);
     }
 }

@@ -1,5 +1,7 @@
 package ch.dissem.mpj.gossip.messageboard;
 
+import ch.dissem.mpj.gossip.messageboard.nodes.FrontEnd;
+import ch.dissem.mpj.gossip.messageboard.nodes.ReplicationManager;
 import mpi.MPI;
 
 /**

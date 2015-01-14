@@ -47,22 +47,18 @@ public class VT implements Cloneable, Serializable {
         return v;
     }
 
-    public CID generateCid() {
-        return new CID(nodeId, ++vector[nodeId]);
-    }
-
     public long[] getVector() {
         long[] v = new long[vector.length];
         System.arraycopy(vector, 0, v, 0, vector.length);
         return v;
     }
 
-    public long getTime(int node) {
+    public synchronized long getTime(int node) {
         return vector[node];
     }
 
     @Override
-    protected VT clone() {
+    public VT clone() {
         try {
             return (VT) super.clone();
         } catch (CloneNotSupportedException e) {
@@ -70,7 +66,7 @@ public class VT implements Cloneable, Serializable {
         }
     }
 
-    public void increment() {
+    public synchronized void increment() {
         vector[nodeId]++;
     }
 
