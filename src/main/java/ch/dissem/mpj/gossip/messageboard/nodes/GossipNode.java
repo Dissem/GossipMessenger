@@ -14,6 +14,9 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.joining;
 
 /**
  * Created by chris on 08.01.15.
@@ -58,7 +61,8 @@ public class GossipNode implements Serializable {
         this.serverThreshold = serverThreshold;
 
         nodeId = MPI.COMM_WORLD.Rank();
-        System.out.println("Node " + nodeId + " is a " + getClass().getSimpleName());
+
+        log(getClass().getSimpleName());
 
         timestamp = new VT(nodeId);
 
@@ -93,7 +97,7 @@ public class GossipNode implements Serializable {
     }
 
     protected void receiveMessage(Object message) {
-        System.out.println("Node " + nodeId + " received message:\n" + message);
+        log("Received", message);
         if (message instanceof Update) {
             receive((Update) message);
         } else if (message instanceof Query) {
@@ -106,7 +110,8 @@ public class GossipNode implements Serializable {
     protected void send(int node, GossipMessage message) {
         message.prev = replicaTS.clone(); // FIXME: oder doch valueTS?
 
-        System.out.println("From: " + nodeId + "; To: " + node + "; " + message.getClass().getSimpleName() + ":\n\t" + message);
+        log("Sent to: " + node, message);
+
         MPI.COMM_WORLD.Isend(new GossipMessage[]{message}, 0, 1, MPI.OBJECT, node, 0);
     }
 
@@ -164,5 +169,9 @@ public class GossipNode implements Serializable {
 
     protected CID createCID() {
         return new CID(nodeId, messageId++);
+    }
+
+    protected void log(String tag, Object... objects) {
+        System.out.println("N" + nodeId + ": " + tag + "; " + Stream.of(objects).map(o -> o.getClass().getSimpleName() + ": " + o).collect(joining("; ")));
     }
 }

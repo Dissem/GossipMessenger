@@ -15,9 +15,9 @@ public class Starter {
         int size = MPI.COMM_WORLD.Size();
         int rank = MPI.COMM_WORLD.Rank();
 
-        int serverThreshold = size / 5;
+        int serverThreshold = size / 4;
 
-        if (rank < serverThreshold) {
+        if (rank <= serverThreshold) {
             new ReplicationManager(size, serverThreshold).start();
         } else {
             new FrontEnd(size, serverThreshold).start();

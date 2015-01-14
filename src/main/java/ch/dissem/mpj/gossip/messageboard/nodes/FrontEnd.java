@@ -4,6 +4,7 @@ import ch.dissem.mpj.gossip.messageboard.CID;
 import ch.dissem.mpj.gossip.messageboard.Message;
 import ch.dissem.mpj.gossip.messageboard.VT;
 import ch.dissem.mpj.gossip.messageboard.deprecated.Receipt;
+import ch.dissem.mpj.gossip.messageboard.gossipmessages.Query;
 import ch.dissem.mpj.gossip.messageboard.gossipmessages.Update;
 import mpi.MPI;
 
@@ -43,8 +44,12 @@ public class FrontEnd extends GossipNode {
         super.start();
         for (int i = 0; i < NUMBER_OF_MESSAGES_TO_SEND; i++) {
             wait(MIN_TIME_BETWEEN_MESSAGES, MAX_TIME_BETWEEN_MESSAGES);
-            CID cid = createCID();
-            send(server, new Update(nodeId, cid, Arrays.asList(new Message(user, "Topic " + cid, "Message " + cid)), valueTS));
+            if (Math.random() < 0.5) {
+                CID cid = createCID();
+                send(server, new Update(nodeId, cid, Arrays.asList(new Message(user, "Topic " + cid, "Message " + cid)), valueTS));
+            } else {
+                send(server, new Query(nodeId, timestamp));
+            }
         }
     }
 
