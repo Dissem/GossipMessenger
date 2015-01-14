@@ -14,9 +14,9 @@ import java.util.Arrays;
  * Created by Christian Basler on 2015-01-01.
  */
 public class FrontEnd extends GossipNode {
-    private final static int NUMBER_OF_MESSAGES_TO_SEND = 3;
-    private final static long MIN_TIME_BETWEEN_MESSAGES = 10000; // ms
-    private final static long MAX_TIME_BETWEEN_MESSAGES = 20000; // ms
+    private final static int NUMBER_OF_MESSAGES_TO_SEND = Integer.MAX_VALUE;
+    private final static long MIN_TIME_BETWEEN_MESSAGES = 10_000; // ms
+    private final static long MAX_TIME_BETWEEN_MESSAGES = 60_000; // ms
     private String user;
 
     private final VT timestamp;
@@ -31,15 +31,6 @@ public class FrontEnd extends GossipNode {
     }
 
     @Override
-    protected void receiveMessage(Object message) {
-        if (message instanceof Receipt) {
-            receive((Receipt) message);
-        } else {
-            super.receiveMessage(message);
-        }
-    }
-
-    @Override
     public void start() {
         super.start();
         for (int i = 0; i < NUMBER_OF_MESSAGES_TO_SEND; i++) {
@@ -47,19 +38,23 @@ public class FrontEnd extends GossipNode {
             if (Math.random() < 0.5) {
                 CID cid = createCID();
                 send(server, new Update(nodeId, cid, Arrays.asList(new Message(user, "Topic " + cid, "Message " + cid)), valueTS));
+                System.out.println("FE" + nodeId + " sent message " + cid + " to RM" + server);
             } else {
                 send(server, new Query(nodeId, timestamp));
+                System.out.println("FE" + nodeId + " sent query to RM" + server);
             }
         }
     }
 
     @Override
     protected void receive(Update u) {
+        System.out.println("FE" + nodeId + " received update " + u);
+        for (Message m : u.value) {
+            System.out.println("\t" + m);
+        }
+        System.out.println();
+
         timestamp.max(u.prev);
         super.receive(u);
-    }
-
-    protected void receive(Receipt r) {
-        timestamp.max(r.timestamp);
     }
 }

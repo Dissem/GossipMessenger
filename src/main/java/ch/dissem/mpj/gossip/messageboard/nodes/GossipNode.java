@@ -102,8 +102,10 @@ public class GossipNode implements Serializable {
             receive((Update) message);
         } else if (message instanceof Query) {
             receive((Query) message);
+        } else if (message instanceof Receipt) {
+            receive((Receipt) message);
         } else {
-            throw new NotImplementedException();
+            throw new RuntimeException(message.getClass().getSimpleName() + " not handled in " + getClass().getSimpleName());
         }
     }
 
@@ -149,6 +151,10 @@ public class GossipNode implements Serializable {
         }
     }
 
+    protected void receive(Receipt r) {
+        timestamp.max(r.timestamp); // TODO: gilt das auch für RM?
+    }
+
     protected void apply(Update u) {
         value.addAll(u.value);
     }
@@ -172,6 +178,6 @@ public class GossipNode implements Serializable {
     }
 
     protected void log(String tag, Object... objects) {
-        System.out.println("N" + nodeId + ": " + tag + "; " + Stream.of(objects).map(o -> o.getClass().getSimpleName() + ": " + o).collect(joining("; ")));
+//        System.out.println("N" + nodeId + ": " + tag + "; " + Stream.of(objects).map(o -> o.getClass().getSimpleName() + ": " + o).collect(joining("; ")));
     }
 }
