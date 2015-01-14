@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 /**
  * Represents a message within the bulletin board.
- * <p/>
+ * <p>
  * Created by Christian Basler on 2015-01-01.
  */
 public class Message implements Serializable {
@@ -47,6 +47,6 @@ public class Message implements Serializable {
 
     @Override
     public String toString() {
-        return user + ": " + title + "\n" + content + "\n";
+        return user + ": " + title + ";" + content;
     }
 }

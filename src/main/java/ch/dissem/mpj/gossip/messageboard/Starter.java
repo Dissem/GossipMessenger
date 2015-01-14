@@ -7,13 +7,19 @@ import mpi.MPI;
  */
 public class Starter {
     public static void main(String[] args) {
+        MPI.Init(args);
+
+
         int size = MPI.COMM_WORLD.Size();
         int rank = MPI.COMM_WORLD.Rank();
 
-        if (rank < size / 5) {
-            new ReplicationManager().start();
+        int serverThreshold = size / 5;
+
+        if (rank < serverThreshold) {
+            new ReplicationManager(size, serverThreshold).start();
         } else {
-            new FrontEnd().start();
+            new FrontEnd(size, serverThreshold).start();
         }
+        MPI.Finalize();
     }
 }

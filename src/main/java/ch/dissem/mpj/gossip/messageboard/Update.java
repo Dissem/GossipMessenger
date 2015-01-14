@@ -20,7 +20,7 @@ public class Update implements GossipMessage {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof Update){
+        if (obj instanceof Update) {
             return cid.equals(((Update) obj).cid);
         }
         return false;
@@ -29,5 +29,10 @@ public class Update implements GossipMessage {
     @Override
     public int hashCode() {
         return cid.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return sender + ": " + cid + "; TS=" + timestamp + "; PRV=" + previous + "; Message: " + value;
     }
 }

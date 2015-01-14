@@ -38,6 +38,7 @@ public class VT implements Cloneable, Serializable {
             vector[i] = (vector[i] > other.vector[i] ? vector[i] : other.vector[i]);
         }
     }
+
     public VT min(VT other) {
         VT v = new VT(nodeId);
         for (int i = 0; i < vector.length; i++) {
@@ -56,7 +57,7 @@ public class VT implements Cloneable, Serializable {
         return v;
     }
 
-    public long getTime(int node){
+    public long getTime(int node) {
         return vector[node];
     }
 
@@ -71,5 +72,14 @@ public class VT implements Cloneable, Serializable {
 
     public void increment() {
         vector[nodeId]++;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder("[");
+        for (int i = 0; i < vector.length; i++) {
+            result.append(i).append(':').append(vector[i]).append(';');
+        }
+        return result.replace(result.length() - 1, result.length(), "]").toString();
     }
 }

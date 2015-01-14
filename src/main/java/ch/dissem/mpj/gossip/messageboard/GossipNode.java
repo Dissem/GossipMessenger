@@ -5,12 +5,15 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Created by chris on 08.01.15.
  */
 public class GossipNode implements Serializable {
     protected final int nodeId;
+    protected final int networkSize;
+    protected final int serverThreshold;
     /**
      * Hängt von der Reihenfolge der ch.dissem.mpj.gossip.messageboard.Update-Operationen ab.
      */
@@ -37,14 +40,19 @@ public class GossipNode implements Serializable {
     protected final Set<Update> executedCalls;
     protected final Deque<Query> pendingQueue;
 
-    public GossipNode() {
+    private List<Thread> listenerThreads = new LinkedList<>();
+
+    public GossipNode(int networkSize, int serverThreshold) {
+        this.networkSize = networkSize;
+        this.serverThreshold = serverThreshold;
+
         nodeId = MPI.COMM_WORLD.Rank();
         executedCalls = new HashSet<>();
-        value = new LinkedList<>();
+        value = new CopyOnWriteArrayList<>();
         replicaTS = new VT(nodeId);
         pendingQueue = new LinkedList<>();
         valueTS = new VT(nodeId);
-        updateLog = new LinkedList<>();
+        updateLog = new CopyOnWriteArrayList<>();
     }
 
     public void start() {
@@ -53,17 +61,34 @@ public class GossipNode implements Serializable {
         }
     }
 
+    public void interrupt() {
+        listenerThreads.stream().forEach(Thread::interrupt);
+    }
+
+    public void waitForThreads() {
+        listenerThreads.stream().forEach(t -> {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                // Ignore, we're kinda waiting for this...
+            }
+        });
+    }
+
     protected void startListening(int node) {
-        new Thread(() -> {
-            while (true) {
+        Thread t = new Thread(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
                 GossipMessage[] buf = new GossipMessage[1];
                 MPI.COMM_WORLD.Recv(buf, 0, 1, MPI.OBJECT, node, 0);
                 receiveMessage(buf[0]);
             }
         });
+        listenerThreads.add(t);
+        t.start();
     }
 
     protected void receiveMessage(GossipMessage message) {
+        System.out.println("Node " + nodeId + " received message:\n" + message);
         if (message instanceof Update) {
             receive((Update) message);
         } else if (message instanceof Query) {
@@ -74,12 +99,13 @@ public class GossipNode implements Serializable {
     }
 
     protected void send(int node, GossipMessage message) {
+        System.out.println("Node " + nodeId + " sending message:\n" + message);
         MPI.COMM_WORLD.Isend(new GossipMessage[]{message}, 0, 1, MPI.OBJECT, node, 0);
     }
 
     protected void receive(Query q) {
         if (q.previous.happenedBeforeOrIs(replicaTS)) {
-            send(q.sender, new ReplicatorMessage(value, valueTS));
+            send(q.sender, new ReplicatorMessage(updateLog, replicaTS));
         } else {
             pendingQueue.add(q);
         }
@@ -103,6 +129,18 @@ public class GossipNode implements Serializable {
             value.add(u.value);
             valueTS.max(u.timestamp); // Is this correct?
             executedCalls.add(u);
+        }
+    }
+
+    /**
+     * Waits for a random time between min and max milliseconds.
+     */
+    protected void wait(long min, long max) {
+        try {
+            Thread.sleep(min + (long) (Math.random() * (max - min)));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            interrupt();
         }
     }
 }

@@ -11,4 +11,9 @@ public class Receipt implements GossipMessage {
         this.messageId = u.cid;
         this.timestamp = u.timestamp;
     }
+
+    @Override
+    public String toString() {
+        return messageId + ": ts=" + timestamp;
+    }
 }

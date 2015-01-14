@@ -1,23 +1,25 @@
 package ch.dissem.mpj.gossip.messageboard;
 
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.scene.layout.BorderPane;
-import javafx.stage.Stage;
-
-import java.io.IOException;
+import mpi.MPI;
 
 /**
  * Created by Christian Basler on 2015-01-01.
  */
 public class FrontEnd extends GossipNode {
+    private final static int NUMBER_OF_MESSAGES_TO_SEND = 3;
+    private final static long MIN_TIME_BETWEEN_MESSAGES = 1000; // ms
+    private final static long MAX_TIME_BETWEEN_MESSAGES = 1000; // ms
     private String user;
 
     private final VT timestamp;
 
-    public FrontEnd() {
+    private int server;
+
+    public FrontEnd(int networkSize, int serverThreshold) {
+        super(networkSize, serverThreshold);
         timestamp = new VT(nodeId);
+        user = "User " + nodeId;
+        server = (int) (Math.random() * MPI.COMM_WORLD.Size() / 4);
     }
 
     @Override
@@ -31,8 +33,11 @@ public class FrontEnd extends GossipNode {
 
     @Override
     public void start() {
-        GUI.launch();
         super.start();
+        for (int i = 0; i < NUMBER_OF_MESSAGES_TO_SEND; i++) {
+            wait(MIN_TIME_BETWEEN_MESSAGES, MAX_TIME_BETWEEN_MESSAGES);
+            send(server, new Update(timestamp, nodeId, createCID(), new Message(user, "Topic " + messageId, "Message " + messageId)));
+        }
     }
 
     @Override
@@ -49,27 +54,5 @@ public class FrontEnd extends GossipNode {
 
     private CID createCID() {
         return new CID(nodeId, messageId++);
-    }
-
-    private class GUI extends Application {
-
-        @Override
-        public void start(Stage primaryStage) throws Exception {
-            primaryStage.setTitle("Gossip");
-
-            try {
-                // Load root layout from fxml file.
-                FXMLLoader loader = new FXMLLoader();
-                loader.setLocation(GUI.class.getResource("chat.fxml"));
-                BorderPane rootLayout = loader.load();
-
-                // Show the scene containing the root layout.
-                Scene scene = new Scene(rootLayout);
-                primaryStage.setScene(scene);
-                primaryStage.show();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
     }
 }
