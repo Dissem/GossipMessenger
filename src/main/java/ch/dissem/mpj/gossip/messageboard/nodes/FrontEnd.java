@@ -3,12 +3,9 @@ package ch.dissem.mpj.gossip.messageboard.nodes;
 import ch.dissem.mpj.gossip.messageboard.CID;
 import ch.dissem.mpj.gossip.messageboard.Message;
 import ch.dissem.mpj.gossip.messageboard.VT;
-import ch.dissem.mpj.gossip.messageboard.deprecated.Receipt;
 import ch.dissem.mpj.gossip.messageboard.gossipmessages.Query;
 import ch.dissem.mpj.gossip.messageboard.gossipmessages.Update;
 import mpi.MPI;
-
-import java.util.Arrays;
 
 /**
  * Created by Christian Basler on 2015-01-01.
@@ -37,8 +34,14 @@ public class FrontEnd extends GossipNode {
             wait(MIN_TIME_BETWEEN_MESSAGES, MAX_TIME_BETWEEN_MESSAGES);
             if (Math.random() < 0.5) {
                 CID cid = createCID();
-                send(server, new Update(nodeId, cid, Arrays.asList(new Message(user, "Topic " + cid, "Message " + cid)), valueTS));
-                System.out.println("FE" + nodeId + " sent message " + cid + " to RM" + server);
+                valueTS.increment();
+                if (value.isEmpty() || Math.random() < 0.2) {
+                    send(server, new Update(nodeId, cid, new Message(user, "Topic " + cid, "Message " + cid), valueTS));
+                    System.out.println("FE" + nodeId + " sent message " + cid + " to RM" + server);
+                } else {
+                    Message msg = value.get((int) (value.size() * Math.random()));
+                    send(server, new Update(nodeId, cid, new Message(user, msg, "Answer to " + msg.getUser()), valueTS));
+                }
             } else {
                 send(server, new Query(nodeId, timestamp));
                 System.out.println("FE" + nodeId + " sent query to RM" + server);
@@ -46,15 +49,26 @@ public class FrontEnd extends GossipNode {
         }
     }
 
+    protected void receive(Query q) {
+        if (q.value != null) {
+            value = q.value;
+            valueTS = q.valueTS;
+            timestamp.max(q.valueTS);
+            System.out.println("FE" + nodeId + " received reply");
+            for (Message m : q.value) {
+                System.out.println("\t" + m);
+            }
+        } else {
+            super.receive(q);
+        }
+    }
+
     @Override
     protected void receive(Update u) {
-        System.out.println("FE" + nodeId + " received update " + u);
-        for (Message m : u.value) {
-            System.out.println("\t" + m);
+        if (u.timestamp != null) {
+            timestamp.max(u.timestamp);
+        } else {
+            super.receive(u);
         }
-        System.out.println();
-
-        timestamp.max(u.prev);
-        super.receive(u);
     }
 }

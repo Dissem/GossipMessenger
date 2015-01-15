@@ -38,7 +38,7 @@ public class ReplicationManager extends GossipNode {
                     send(recipient, new ReplicationMessage(timestamp, updateLog));
                 }
             } else {
-                System.out.println("Node " + nodeId + ": update log is empty!");
+                log("update log is empty!");
             }
             wait(MIN_TIME_BETWEEN_MESSAGES, MAX_TIME_BETWEEN_MESSAGES);
         }
@@ -48,7 +48,7 @@ public class ReplicationManager extends GossipNode {
         updateLog.addAll(m.log);
         replicaTS.max(m.timestamp);
 
-        updateLog.stream().filter(r -> !executedCalls.contains(r.update) && r.update.prev.happenedBefore(valueTS)).forEach(r -> {
+        updateLog.stream().filter(r -> !executedCalls.contains(r.update.cid) && r.update.prev.happenedBefore(valueTS)).forEach(r -> {
             executedCalls.add(r.update.cid);
             apply(r.update);
         });

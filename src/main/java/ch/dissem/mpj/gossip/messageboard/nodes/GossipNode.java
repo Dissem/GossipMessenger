@@ -4,24 +4,19 @@ import ch.dissem.mpj.gossip.messageboard.CID;
 import ch.dissem.mpj.gossip.messageboard.LogRecord;
 import ch.dissem.mpj.gossip.messageboard.Message;
 import ch.dissem.mpj.gossip.messageboard.VT;
-import ch.dissem.mpj.gossip.messageboard.deprecated.Receipt;
 import ch.dissem.mpj.gossip.messageboard.gossipmessages.GossipMessage;
 import ch.dissem.mpj.gossip.messageboard.gossipmessages.Query;
 import ch.dissem.mpj.gossip.messageboard.gossipmessages.Update;
 import mpi.MPI;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.joining;
 
 /**
  * Created by chris on 08.01.15.
  */
-public class GossipNode implements Serializable {
+public abstract class GossipNode implements Serializable {
     protected final int nodeId;
     protected final int networkSize;
     protected final int serverThreshold;
@@ -31,12 +26,12 @@ public class GossipNode implements Serializable {
     /**
      * Hängt von der Reihenfolge der ch.dissem.mpj.gossip.messageboard.gossipmessages.Update-Operationen ab.
      */
-    protected final List<Message> value;
+    protected List<Message> value;
     /**
      * Spiegelt die Aktualität des aktuellen Zustandes wider.
      * Wird mit jedem ch.dissem.mpj.gossip.messageboard.gossipmessages.Update aktualisiert.
      */
-    protected final VT valueTS;
+    protected VT valueTS;
     /**
      * Enthält alle Updates, die entweder bereits bearbeitet,
      * aber noch nicht bestätigt wurden oder die noch nicht
@@ -102,15 +97,13 @@ public class GossipNode implements Serializable {
             receive((Update) message);
         } else if (message instanceof Query) {
             receive((Query) message);
-        } else if (message instanceof Receipt) {
-            receive((Receipt) message);
         } else {
             throw new RuntimeException(message.getClass().getSimpleName() + " not handled in " + getClass().getSimpleName());
         }
     }
 
     protected void send(int node, GossipMessage message) {
-        message.prev = replicaTS.clone(); // FIXME: oder doch valueTS?
+        message.prev = timestamp.clone();
 
         log("Sent to: " + node, message);
 
@@ -118,13 +111,18 @@ public class GossipNode implements Serializable {
     }
 
     protected void receive(Query q) {
-        if (q.prev.happenedBeforeOrIs(valueTS)) {
-            valueTS.increment();
-            send(q.sender, new Update(nodeId, createCID(), value, valueTS));
-        } else {
-            pendingQueue.add(q);
+        if (q.value == null) {
+            if (q.prev.happenedBeforeOrIs(valueTS)) {
+                valueTS.increment();
+                Query response = new Query(nodeId, null);
+                response.value = value;
+                response.valueTS = valueTS;
+                send(q.sender, response);
+            } else {
+                pendingQueue.add(q);
+            }
+            timestamp.max(q.prev);
         }
-        timestamp.max(q.prev);
     }
 
     protected void receive(Update u) {
@@ -142,7 +140,7 @@ public class GossipNode implements Serializable {
 
         // TODO: timestamp wird and die zugehörige FE zurückgegeben, welche ihren Timestamp entsprechend durch die Maximumsbildung anpasst.
         // TODO: Wie?
-        send(u.sender, new Receipt(u));
+        send(u.sender, u);
 
         if (u.prev.happenedBefore(valueTS)) {
             apply(u);
@@ -151,12 +149,9 @@ public class GossipNode implements Serializable {
         }
     }
 
-    protected void receive(Receipt r) {
-        timestamp.max(r.timestamp); // TODO: gilt das auch für RM?
-    }
-
     protected void apply(Update u) {
-        value.addAll(u.value);
+        // FIXME: Das ist vielleicht immer noch falsch
+        value.add(u.value);
     }
 
     /**

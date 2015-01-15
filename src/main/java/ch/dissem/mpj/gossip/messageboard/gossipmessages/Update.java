@@ -7,14 +7,14 @@ import ch.dissem.mpj.gossip.messageboard.VT;
 import java.util.List;
 
 /**
- * ch.dissem.mpj.gossip.messageboard.gossipmessages.Update is being sent from front end to replication manager.
+ * Update is being sent from front end to replication manager.
  */
 public class Update extends GossipMessage {
     public final CID cid;
-    public final List<Message> value;
+    public final Message value;
     public VT timestamp;
 
-    public Update(int nodeId, CID cid, List<Message> value, VT valueTS) {
+    public Update(int nodeId, CID cid, Message value, VT valueTS) {
         this.sender = nodeId;
         this.cid = cid;
         this.value = value;
@@ -36,6 +36,6 @@ public class Update extends GossipMessage {
 
     @Override
     public String toString() {
-        return sender + ": prev=" + prev + "; Messages: " + value;
+        return sender + ": prev=" + prev + "; Message: " + value;
     }
 }

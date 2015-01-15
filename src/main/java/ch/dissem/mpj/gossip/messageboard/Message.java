@@ -23,12 +23,7 @@ public class Message implements Serializable {
     public Message(String user, Message message, String content) {
         this.timestamp = System.currentTimeMillis();
         this.user = user;
-
-        if (message.getTitle().startsWith("RE:")) {
-            this.title = message.getTitle();
-        } else {
-            this.title = "RE: " + message.getTitle();
-        }
+        this.title = "RE: " + message.getTitle();
         this.content = content;
     }
 
