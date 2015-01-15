@@ -1,8 +1,8 @@
 package ch.dissem.mpj.gossip.messageboard.nodes;
 
+import ch.dissem.mpj.gossip.messageboard.Starter;
 import ch.dissem.mpj.gossip.messageboard.VT;
 import ch.dissem.mpj.gossip.messageboard.gossipmessages.ReplicationMessage;
-import ch.dissem.mpj.gossip.messageboard.gossipmessages.Update;
 import mpi.MPI;
 
 import static java.lang.Thread.currentThread;
@@ -33,13 +33,13 @@ public class ReplicationManager extends GossipNode {
 
         while (!currentThread().isInterrupted()) {
             if (!updateLog.isEmpty()) {
-                int recipient = (int) (Math.random() * MPI.COMM_WORLD.Size() / 5);
+                int recipient = (int) (Math.random() * numberOfServers);
                 // don't send to self
                 if (recipient != nodeId) {
                     send(recipient, new ReplicationMessage(replicaTS, updateLog));
                 }
             } else {
-                log("update log is empty!");
+//                log("update log is empty!");
             }
             wait(MIN_TIME_BETWEEN_MESSAGES, MAX_TIME_BETWEEN_MESSAGES);
         }
@@ -64,9 +64,9 @@ public class ReplicationManager extends GossipNode {
                     }
                 });
         VT minTS = valueTS.getMin(m.timestamp);
-        int before = updateLog.size();
+//        int before = updateLog.size();
         updateLog.removeIf(l -> l.update.timestamp.happenedBeforeOrIs(minTS));
-        int after = updateLog.size();
-        if (after < before) System.out.println("Removed " + (before - after) + " entries!!!!!!!!!!!");
+//        int after = updateLog.size();
+//        if (after < before) System.out.println("Removed " + (before - after) + " entries!!!!!!!!!!!");
     }
 }

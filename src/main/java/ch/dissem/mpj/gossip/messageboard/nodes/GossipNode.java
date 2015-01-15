@@ -11,6 +11,9 @@ import mpi.MPI;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.joining;
 
 /**
  * Created by chris on 08.01.15.
@@ -113,7 +116,6 @@ public abstract class GossipNode implements Serializable {
     protected void receive(Query q) {
         if (q.value == null) {
             if (q.prev.happenedBeforeOrIs(valueTS)) {
-                valueTS.increment();
                 Query response = new Query(nodeId, null);
                 response.value = value;
                 response.valueTS = valueTS;
@@ -170,7 +172,7 @@ public abstract class GossipNode implements Serializable {
     }
 
     protected void log(String tag, Object... objects) {
-//        System.out.println("N" + nodeId + ": " + tag + "; " + Stream.of(objects).map(o -> o.getClass().getSimpleName() + ": " + o).collect(joining("; ")));
+        System.out.println("N" + nodeId + ": " + tag + "; " + Stream.of(objects).map(o -> o.getClass().getSimpleName() + ": " + o).collect(joining("; ")));
     }
 
     protected void logSizes() {

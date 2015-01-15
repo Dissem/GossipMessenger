@@ -1,8 +1,12 @@
 package ch.dissem.mpj.gossip.messageboard;
 
-import mpi.MPI;
-
 import java.io.Serializable;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.joining;
 
 public class VT implements Cloneable, Serializable {
     private final int nodeId;
@@ -76,10 +80,6 @@ public class VT implements Cloneable, Serializable {
 
     @Override
     public String toString() {
-        StringBuilder result = new StringBuilder("[");
-        for (int i = 0; i < vector.length; i++) {
-            result.append(i).append(':').append(vector[i]).append(';');
-        }
-        return result.replace(result.length() - 1, result.length(), "]").toString();
+        return "[" + LongStream.of(vector).mapToObj(String::valueOf).collect(joining(":"))+ "]";
     }
 }

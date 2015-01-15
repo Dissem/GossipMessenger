@@ -16,4 +16,9 @@ public class Query extends GossipMessage {
         this.sender = sender;
         this.prev = vt;
     }
+
+    @Override
+    public String toString() {
+        return sender + ": " + prev;
+    }
 }

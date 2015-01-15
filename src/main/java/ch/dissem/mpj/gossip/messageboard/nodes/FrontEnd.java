@@ -24,7 +24,7 @@ public class FrontEnd extends GossipNode {
         super(networkSize, serverThreshold);
         timestamp = new VT(nodeId);
         user = "User " + nodeId;
-        server = (int) (Math.random() * MPI.COMM_WORLD.Size() / 4);
+        server = (int) (Math.random() * numberOfServers);
     }
 
     @Override
@@ -35,11 +35,11 @@ public class FrontEnd extends GossipNode {
             if (Math.random() < 0.5) {
                 CID cid = createCID();
                 if (value.isEmpty() || Math.random() < 0.2) {
-                    send(server, new Update(nodeId, cid, new Message(user, "Topic " + cid, "Message " + cid), valueTS));
+                    send(server, new Update(nodeId, cid, new Message(user, "Topic " + cid, "Message " + cid), timestamp));
                     System.out.println("FE" + nodeId + " sent message " + cid + " to RM" + server);
                 } else {
                     Message msg = value.get((int) (value.size() * Math.random()));
-                    send(server, new Update(nodeId, cid, new Message(user, msg, "Answer to " + msg.getUser() + " with message " + cid), valueTS));
+                    send(server, new Update(nodeId, cid, new Message(user, msg, "Answer to " + msg.getUser() + " with message " + cid), timestamp));
                 }
             } else {
                 send(server, new Query(nodeId, timestamp));
