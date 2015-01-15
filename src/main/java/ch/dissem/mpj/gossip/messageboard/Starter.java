@@ -8,6 +8,8 @@ import mpi.MPI;
  * Created by chris on 12.01.15.
  */
 public class Starter {
+    public static int numberOfServers;
+
     public static void main(String[] args) {
         MPI.Init(args);
 
@@ -15,12 +17,12 @@ public class Starter {
         int size = MPI.COMM_WORLD.Size();
         int rank = MPI.COMM_WORLD.Rank();
 
-        int serverThreshold = size / 4;
+        numberOfServers = (size / 4) + 1;
 
-        if (rank <= serverThreshold) {
-            new ReplicationManager(size, serverThreshold).start();
+        if (rank < numberOfServers) {
+            new ReplicationManager(size, numberOfServers).start();
         } else {
-            new FrontEnd(size, serverThreshold).start();
+            new FrontEnd(size, numberOfServers).start();
         }
         MPI.Finalize();
     }

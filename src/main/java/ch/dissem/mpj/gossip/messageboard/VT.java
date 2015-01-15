@@ -10,7 +10,7 @@ public class VT implements Cloneable, Serializable {
 
     public VT(int node) {
         this.nodeId = node;
-        this.vector = new long[MPI.COMM_WORLD.Size()];
+        this.vector = new long[Starter.numberOfServers];
     }
 
     public VT(int node, long[] vector) {
@@ -39,7 +39,7 @@ public class VT implements Cloneable, Serializable {
         }
     }
 
-    public VT min(VT other) {
+    public VT getMin(VT other) {
         VT v = new VT(nodeId);
         for (int i = 0; i < vector.length; i++) {
             v.vector[i] = (vector[i] < other.vector[i] ? vector[i] : other.vector[i]);
@@ -67,7 +67,11 @@ public class VT implements Cloneable, Serializable {
     }
 
     public synchronized void increment() {
-        vector[nodeId]++;
+        if (nodeId<vector.length) {
+            vector[nodeId]++;
+        }else{
+            throw new RuntimeException("Increment from FrontEnd");
+        }
     }
 
     @Override

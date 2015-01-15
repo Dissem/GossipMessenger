@@ -11,7 +11,6 @@ import mpi.MPI;
 
 import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Created by chris on 08.01.15.
@@ -19,17 +18,17 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public abstract class GossipNode implements Serializable {
     protected final int nodeId;
     protected final int networkSize;
-    protected final int serverThreshold;
+    protected final int numberOfServers;
 
     protected final VT timestamp;
 
     /**
-     * Hängt von der Reihenfolge der ch.dissem.mpj.gossip.messageboard.gossipmessages.Update-Operationen ab.
+     * Hängt von der Reihenfolge der Update-Operationen ab.
      */
     protected List<Message> value;
     /**
      * Spiegelt die Aktualität des aktuellen Zustandes wider.
-     * Wird mit jedem ch.dissem.mpj.gossip.messageboard.gossipmessages.Update aktualisiert.
+     * Wird mit jedem Update aktualisiert.
      */
     protected VT valueTS;
     /**
@@ -39,7 +38,7 @@ public abstract class GossipNode implements Serializable {
      */
     protected final List<LogRecord> updateLog;
     /**
-     * Berücksichtigt alle im ch.dissem.mpj.gossip.messageboard.gossipmessages.Update-Log enthaltenen Events.
+     * Berücksichtigt alle im Update-Log enthaltenen Events.
      */
     protected final VT replicaTS;
     /**
@@ -51,9 +50,9 @@ public abstract class GossipNode implements Serializable {
 
     private List<Thread> listenerThreads = new LinkedList<>();
 
-    public GossipNode(int networkSize, int serverThreshold) {
+    public GossipNode(int networkSize, int numberOfServers) {
         this.networkSize = networkSize;
-        this.serverThreshold = serverThreshold;
+        this.numberOfServers = numberOfServers;
 
         nodeId = MPI.COMM_WORLD.Rank();
 
@@ -62,11 +61,11 @@ public abstract class GossipNode implements Serializable {
         timestamp = new VT(nodeId);
 
         executedCalls = new HashSet<>();
-        value = new CopyOnWriteArrayList<>();
+        value = new LinkedList<>();
         replicaTS = new VT(nodeId);
         pendingQueue = new LinkedList<>();
         valueTS = new VT(nodeId);
-        updateLog = new CopyOnWriteArrayList<>();
+        updateLog = new LinkedList<>();
     }
 
     public void start() {
@@ -91,7 +90,7 @@ public abstract class GossipNode implements Serializable {
         t.start();
     }
 
-    protected void receiveMessage(Object message) {
+    protected synchronized void receiveMessage(Object message) {
         log("Received", message);
         if (message instanceof Update) {
             receive((Update) message);
@@ -103,6 +102,7 @@ public abstract class GossipNode implements Serializable {
     }
 
     protected void send(int node, GossipMessage message) {
+        logSizes();
         message.prev = timestamp.clone();
 
         log("Sent to: " + node, message);
@@ -138,20 +138,17 @@ public abstract class GossipNode implements Serializable {
         LogRecord logRecord = new LogRecord(nodeId, u.timestamp, u);
         updateLog.add(logRecord);
 
-        // TODO: timestamp wird and die zugehörige FE zurückgegeben, welche ihren Timestamp entsprechend durch die Maximumsbildung anpasst.
-        // TODO: Wie?
         send(u.sender, u);
 
         if (u.prev.happenedBefore(valueTS)) {
             apply(u);
-            valueTS.max(u.timestamp); // TODO: stimmt das?
-            executedCalls.add(u.cid);
         }
     }
 
     protected void apply(Update u) {
-        // FIXME: Das ist vielleicht immer noch falsch
+        executedCalls.add(u.cid);
         value.add(u.value);
+        valueTS.max(u.timestamp); // TODO: stimmt das?
     }
 
     /**
@@ -174,5 +171,15 @@ public abstract class GossipNode implements Serializable {
 
     protected void log(String tag, Object... objects) {
 //        System.out.println("N" + nodeId + ": " + tag + "; " + Stream.of(objects).map(o -> o.getClass().getSimpleName() + ": " + o).collect(joining("; ")));
+    }
+
+    protected void logSizes() {
+        if (updateLog.size() > 0) {
+            System.out.println(getClass().getSimpleName() + " " + nodeId);
+            System.out.println("value:\t" + value.size());
+            System.out.println("updateLog:\t" + updateLog.size());
+            System.out.println("pendingQueue:\t" + pendingQueue.size());
+            System.out.println("executedCalls:\t" + executedCalls.size());
+        }
     }
 }

@@ -12,8 +12,8 @@ import mpi.MPI;
  */
 public class FrontEnd extends GossipNode {
     private final static int NUMBER_OF_MESSAGES_TO_SEND = Integer.MAX_VALUE;
-    private final static long MIN_TIME_BETWEEN_MESSAGES = 10_000; // ms
-    private final static long MAX_TIME_BETWEEN_MESSAGES = 60_000; // ms
+    private final static long MIN_TIME_BETWEEN_MESSAGES = 1_000; // ms
+    private final static long MAX_TIME_BETWEEN_MESSAGES = 6_000; // ms
     private String user;
 
     private final VT timestamp;
@@ -34,13 +34,12 @@ public class FrontEnd extends GossipNode {
             wait(MIN_TIME_BETWEEN_MESSAGES, MAX_TIME_BETWEEN_MESSAGES);
             if (Math.random() < 0.5) {
                 CID cid = createCID();
-                valueTS.increment();
                 if (value.isEmpty() || Math.random() < 0.2) {
                     send(server, new Update(nodeId, cid, new Message(user, "Topic " + cid, "Message " + cid), valueTS));
                     System.out.println("FE" + nodeId + " sent message " + cid + " to RM" + server);
                 } else {
                     Message msg = value.get((int) (value.size() * Math.random()));
-                    send(server, new Update(nodeId, cid, new Message(user, msg, "Answer to " + msg.getUser()), valueTS));
+                    send(server, new Update(nodeId, cid, new Message(user, msg, "Answer to " + msg.getUser() + " with message " + cid), valueTS));
                 }
             } else {
                 send(server, new Query(nodeId, timestamp));
